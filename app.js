@@ -194,6 +194,8 @@ function generateQuestion(questionNumber) {
     answers.push(quizQuestion.wrongAnswers[i]);
   }
 
+  shuffle(answers);
+
   const questionHTML = `
     <div class="question">
       ${quizQuestion.question}
@@ -215,4 +217,13 @@ function generateQuestion(questionNumber) {
   `;
 
   return questionHTML;
+}
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const randomIndex = Math.floor(Math.random() * (array.length));
+    [array[randomIndex], array[i]] = [array[i], array[randomIndex]];
+  }
+
+  return array;
 }
