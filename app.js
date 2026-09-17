@@ -137,12 +137,9 @@ function generateQuiz() {
       resetState();
       generateQuiz();
     } else {
-      generateScoreSummary();
       quizState.isFinished = true;
-      questionNumber = 1;
-      questionState.isAnswered = false;
-      questionState.selectedAnswer = undefined;
       saveState();
+      generateScoreSummary();
     }
   });
 
@@ -154,6 +151,14 @@ function generateQuiz() {
     nextButton.disabled = false;
     answerButtons.forEach(button => {
       button.disabled = true;
+      if (selectedAnswer === button.dataset.answer) {
+        if (selectedAnswer === quiz[questionNumber].correctAnswer) {
+          button.classList.add('correct-answer');
+        } else {
+          button.classList.add('wrong-answer');
+          revealCorrectAnswer(answerButtons);
+        }
+      }
     });
   }
 
@@ -221,6 +226,14 @@ function updateScore() {
     .innerHTML = `Score: ${score}/${totalQuizes}`;
 }
 
+function revealCorrectAnswer(answerButtons) {
+  answerButtons.forEach(button => {
+    if (button.dataset.answer === quiz[questionNumber].correctAnswer) {
+      button.classList.add('correct-answer-hint');
+    }
+  });
+}
+
 function handleCorrectAnswer(button) {
   const value = button.dataset.answer;
 
@@ -239,13 +252,10 @@ function handleWrongAnswer(button, answerButtons) {
   button.classList.add('wrong-answer');
   timeLeft = 30;
 
-  answerButtons.forEach(button => {
-    if (button.dataset.answer === quiz[questionNumber].correctAnswer) {
-      setTimeout(() => {
-        button.classList.add('correct-answer-hint');
-      }, 2000);
-    }
-  });
+  setTimeout(() => {
+    revealCorrectAnswer(answerButtons);
+  }, 1000);
+  
   questionState.isAnswered = true;
   questionState.selectedAnswer = value;
   saveState();
