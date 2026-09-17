@@ -30,36 +30,59 @@ const quiz = {
 
 const totalQuizes = Object.keys(quiz).length;
 let score = JSON.parse(localStorage.getItem('score')) || 0;
-let intervalIds = JSON.parse(localStorage.getItem('intervalIds')) || {};
 let timeLeft = 30;
+let intervalId = null;
 
 let questionNumber = JSON.parse(localStorage.getItem('questionNumber')) || 1;
 
-const questionState = JSON.parse(localStorage.getItem('questionState')) || {
+let questionState = JSON.parse(localStorage.getItem('questionState')) || {
   isAnswered: false,
   selectedAnswer: undefined
 };
 
-console.log(questionState);
+let quizState = JSON.parse(localStorage.getItem('quizState')) || {
+  isFinished: false,
+};
 
 function saveState() {
   localStorage.setItem('score', JSON.stringify(score));
-  localStorage.setItem('intervalIds', JSON.stringify(intervalIds));
   localStorage.setItem('questionNumber', JSON.stringify(questionNumber));
   localStorage.setItem('questionState', JSON.stringify(questionState));
+  localStorage.setItem('quizState', JSON.stringify(quizState));
+}
+
+function resetState() {
+  localStorage.removeItem('questionState');
+
+  questionState = {
+    isAnswered: false,
+    selectedAnswer: undefined
+  }
 }
 
 function resetGame() {
   localStorage.removeItem('score');
-  localStorage.removeItem('intervalIds');
   localStorage.removeItem('questionNumber');
   localStorage.removeItem('questionState');
+  localStorage.removeItem('quizState');
+
+  score = 0;
+  questionNumber = 1;
+  questionState = {
+    isAnswered: false,
+    selectedAnswer: undefined
+  };
+  quizState = {
+    isFinished: false,
+  };
 }
 
 function generateQuiz() {
+  saveState();
+
   const percentProgress = (questionNumber / totalQuizes) * 100;
 
-  quizHTML = `
+  const quizHTML = `
     <div class="quiz-header">
       <div class="status">
         <div class="score js-score">
@@ -111,13 +134,28 @@ function generateQuiz() {
     const nextQuestionNumber = Number(nextButton.dataset.nextQuestionNumber);
     if (nextQuestionNumber <= totalQuizes) {
       questionNumber = nextQuestionNumber;
+      resetState();
       generateQuiz();
     } else {
       generateScoreSummary();
+      quizState.isFinished = true;
+      questionNumber = 1;
+      questionState.isAnswered = false;
+      questionState.selectedAnswer = undefined;
+      saveState();
     }
   });
 
   const answerButtons = document.querySelectorAll('.js-answer-button');
+
+  const { isAnswered, selectedAnswer } = questionState;
+
+  if (isAnswered) {
+    nextButton.disabled = false;
+    answerButtons.forEach(button => {
+      button.disabled = true;
+    });
+  }
 
   answerButtons.forEach(button => {
       button.addEventListener('click', () => {
@@ -138,42 +176,29 @@ function generateQuiz() {
       })
     });
 
-  setTimer();
-
   function autoAnswer() {
     answerButtons.forEach(button => {
       button.disabled = true;
       if (button.dataset.answer === quiz[questionNumber].correctAnswer) {
         button.classList.add('correct-answer-hint');
+        questionState.isAnswered = true;
+        questionState.selectedAnswer = button.dataset.answer;
+        saveState();
       }
     });
 
     nextButton.disabled = false;
   }
-
-  function setTimer() {
-    if (intervalIds[questionNumber]) {
-      clearInterval(intervalIds[questionNumber]);
-    }
-
-    intervalIds[questionNumber] = setInterval(() => {
-      if (timeLeft > 0) {
-        timeLeft -= 1;
-        document.querySelector('.js-count-down')
-          .innerHTML = timeLeft;
-      } else {
-        clearInterval(intervalIds[questionNumber]);
-        timeLeft = 30;
-        autoAnswer();
-      }
-    }, 1000);
-  }
 }
 
-generateQuiz();
+if (quizState.isFinished) {
+  generateScoreSummary();
+} else {
+  generateQuiz();
+}
 
 function generateScoreSummary() {
-  scoreSummaryHTML = `
+  const scoreSummaryHTML = `
     <div class="score-summary-container">
       <h1>Congratulations</h1>
       <h2>You scored ${score} out of ${totalQuizes}</h2>
@@ -186,10 +211,8 @@ function generateScoreSummary() {
 
   document.querySelector('.js-play-again-button')
     .addEventListener('click', () => {
-      score = 0;
-      questionNumber = 1;
+      resetGame();
       generateQuiz();
-      updateScore();
     });
 }
 
@@ -204,18 +227,16 @@ function handleCorrectAnswer(button) {
   button.classList.add('correct-answer');
   score ++;
   updateScore();
-  clearInterval(intervalIds[questionNumber]);
   timeLeft = 30;
   questionState.isAnswered = true;
   questionState.selectedAnswer = value;
-  console.log(questionState)
+  saveState();
 }
 
 function handleWrongAnswer(button, answerButtons) {
   const value = button.dataset.answer;
 
   button.classList.add('wrong-answer');
-  clearInterval(intervalIds[questionNumber]);
   timeLeft = 30;
 
   answerButtons.forEach(button => {
@@ -227,7 +248,7 @@ function handleWrongAnswer(button, answerButtons) {
   });
   questionState.isAnswered = true;
   questionState.selectedAnswer = value;
-  console.log(questionState)
+  saveState();
 }
 
 function generateQuestion() {
@@ -266,7 +287,7 @@ function generateQuestion() {
 
 function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
-    const randomIndex = Math.floor(Math.random() * (array.length));
+    const randomIndex = Math.floor(Math.random() * (i + 1));
     [array[randomIndex], array[i]] = [array[i], array[randomIndex]];
   }
 
