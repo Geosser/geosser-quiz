@@ -1,6 +1,5 @@
-/* const quizQuestions = [
+const quizQuestions = [
   {
-    id: 1,
     question: 'What does CPU stand for in computer hardware?',
     correctAnswer: 'Central Processing Unit',
     wrongAnswers: [
@@ -10,7 +9,6 @@
     ]
   },
   {
-    id: 2,
     question: 'What does NPU stand for in computer hardware?',
     correctAnswer: 'Neural Processing Unit',
     wrongAnswers: [
@@ -20,7 +18,6 @@
     ]
   },
   {
-    id: 3,
     question: 'What does RAM stand for in computer hardware?',
     correctAnswer: 'Random Access Memory',
     wrongAnswers: [
@@ -29,9 +26,9 @@
       'Rate At Minutes'
     ]
   }
-]; */
+];
 
-const quiz = {
+/* const quiz = {
   1: {
     question: 'What does CPU stand for in computer hardware?',
     correctAnswer: 'Central Processing Unit',
@@ -59,14 +56,14 @@ const quiz = {
       'Rate At Minutes'
     ]
   }
-};
+};*/
 
-const totalQuizes = Object.keys(quiz).length;
+const totalQuizes = quizQuestions.length;
 let score = JSON.parse(localStorage.getItem('score')) || 0;
 let timeLeft = 15;
 let intervalId = null;
 
-let questionNumber = JSON.parse(localStorage.getItem('questionNumber')) || 1;
+let questionNumber = JSON.parse(localStorage.getItem('questionNumber')) || 0;
 
 let questionState = JSON.parse(localStorage.getItem('questionState')) || {
   isAnswered: false,
@@ -100,7 +97,7 @@ function resetGame() {
   localStorage.removeItem('quizState');
 
   score = 0;
-  questionNumber = 1;
+  questionNumber = 0;
   questionState = {
     isAnswered: false,
     selectedAnswer: undefined
@@ -113,7 +110,7 @@ function resetGame() {
 function generateQuiz() {
   saveState();
 
-  const percentProgress = (questionNumber / totalQuizes) * 100;
+  const percentProgress = ((questionNumber + 1) / totalQuizes) * 100;
 
   const quizHTML = `
     <div class="quiz-header">
@@ -130,7 +127,7 @@ function generateQuiz() {
         <div class="progress-bar-container">
           <div class="progress-bar" style="width:${percentProgress}%"></div>
           <div class="quiz-progress">
-          ${questionNumber} of ${totalQuizes} Questions
+          ${questionNumber + 1} of ${totalQuizes} Questions
         </div>
         </div>
       </div>
@@ -144,7 +141,7 @@ function generateQuiz() {
       </div>
 
       <div class="question-number">
-        Question ${questionNumber} of ${totalQuizes}:
+        Question ${questionNumber + 1} of ${totalQuizes}:
       </div>
 
       <div class="js-question-body">
@@ -159,14 +156,14 @@ function generateQuiz() {
   const nextButton = document.querySelector('.js-next-button');
   nextButton.disabled = true;
 
-  if (Number(nextButton.dataset.nextQuestionNumber) > totalQuizes) {
+  if (Number(nextButton.dataset.nextQuestionNumber) + 1 > totalQuizes) {
     nextButton.innerHTML = 'Finish';
   }
 
   nextButton.addEventListener('click', () => {
     stopTimer();
     const nextQuestionNumber = Number(nextButton.dataset.nextQuestionNumber);
-    if (nextQuestionNumber <= totalQuizes) {
+    if (nextQuestionNumber + 1 <= totalQuizes) {
       questionNumber = nextQuestionNumber;
       resetState();
       generateQuiz();
@@ -188,7 +185,7 @@ function generateQuiz() {
     answerButtons.forEach(button => {
       button.disabled = true;
       if (selectedAnswer === button.dataset.answer) {
-        if (selectedAnswer === quiz[questionNumber].correctAnswer) {
+        if (selectedAnswer === quizQuestions[questionNumber].correctAnswer) {
           button.classList.add('correct-answer');
         } else {
           button.classList.add('wrong-answer');
@@ -213,7 +210,7 @@ function generateQuiz() {
 
         const value = button.dataset.answer;
 
-        if (value === quiz[questionNumber].correctAnswer) {
+        if (value === quizQuestions[questionNumber].correctAnswer) {
           handleCorrectAnswer(button);
 
         } else {
@@ -257,7 +254,7 @@ function updateScore() {
 
 function revealCorrectAnswer(answerButtons) {
   answerButtons.forEach(button => {
-    if (button.dataset.answer === quiz[questionNumber].correctAnswer) {
+    if (button.dataset.answer === quizQuestions[questionNumber].correctAnswer) {
       button.classList.add('correct-answer-hint');
     }
   });
@@ -293,7 +290,7 @@ function handleWrongAnswer(button, answerButtons) {
 }
 
 function generateQuestion() {
-  const quizQuestion = quiz[questionNumber];
+  const quizQuestion = quizQuestions[questionNumber];
 
   const answers = [];
   answers.push(quizQuestion.correctAnswer);
