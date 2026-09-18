@@ -31,6 +31,7 @@ header {
   padding: 10px 30px;
   font-size: 20px;
   background-color: #008BFF;
+  transition: background-color 0.3s ease;
 }
 
 .button-primary:hover {
@@ -130,6 +131,7 @@ header {
   border-radius: 5px;
   border: none;
   box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.15);
+  transition: background-color 0.3s ease;
 }
 
 .answer-button:hover {
@@ -140,6 +142,7 @@ header {
 .correct-answer {
   background-color: #008000;
   color: white;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .correct-answer:hover {
@@ -150,6 +153,7 @@ header {
 .correct-answer-hint {
   background-color: #0080004d;
   color: white;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .correct-answer-hint:hover {
@@ -160,6 +164,7 @@ header {
 .wrong-answer {
   background-color: #fa2727;
   color: white;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .wrong-answer:hover {

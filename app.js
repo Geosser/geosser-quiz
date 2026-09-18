@@ -1,3 +1,36 @@
+/* const quizQuestions = [
+  {
+    id: 1,
+    question: 'What does CPU stand for in computer hardware?',
+    correctAnswer: 'Central Processing Unit',
+    wrongAnswers: [
+      'Computer Personal Unit',
+      'Central Processor Unit',
+      'Central Process Unit'
+    ]
+  },
+  {
+    id: 2,
+    question: 'What does NPU stand for in computer hardware?',
+    correctAnswer: 'Neural Processing Unit',
+    wrongAnswers: [
+      'Neural Personal Unit',
+      'Neural Processor Unit',
+      'Neural Process Unit'
+    ]
+  },
+  {
+    id: 3,
+    question: 'What does RAM stand for in computer hardware?',
+    correctAnswer: 'Random Access Memory',
+    wrongAnswers: [
+      'Random Accessory Memory',
+      'Random Actual Memory',
+      'Rate At Minutes'
+    ]
+  }
+]; */
+
 const quiz = {
   1: {
     question: 'What does CPU stand for in computer hardware?',
@@ -30,7 +63,7 @@ const quiz = {
 
 const totalQuizes = Object.keys(quiz).length;
 let score = JSON.parse(localStorage.getItem('score')) || 0;
-let timeLeft = 30;
+let timeLeft = 15;
 let intervalId = null;
 
 let questionNumber = JSON.parse(localStorage.getItem('questionNumber')) || 1;
@@ -73,7 +106,7 @@ function resetGame() {
     selectedAnswer: undefined
   };
   quizState = {
-    isFinished: false,
+    isFinished: false
   };
 }
 
@@ -89,7 +122,7 @@ function generateQuiz() {
           Score: ${score}/${totalQuizes}
         </div>
         <div class="count-down">
-          Time Remaining: <span class="js-count-down">30</span>s
+          Time Remaining: <span class="js-count-down">15</span>s
         </div>
       </div>
 
@@ -131,6 +164,7 @@ function generateQuiz() {
   }
 
   nextButton.addEventListener('click', () => {
+    stopTimer();
     const nextQuestionNumber = Number(nextButton.dataset.nextQuestionNumber);
     if (nextQuestionNumber <= totalQuizes) {
       questionNumber = nextQuestionNumber;
@@ -148,7 +182,9 @@ function generateQuiz() {
   const { isAnswered, selectedAnswer } = questionState;
 
   if (isAnswered) {
+    stopTimer();
     nextButton.disabled = false;
+
     answerButtons.forEach(button => {
       button.disabled = true;
       if (selectedAnswer === button.dataset.answer) {
@@ -158,8 +194,13 @@ function generateQuiz() {
           button.classList.add('wrong-answer');
           revealCorrectAnswer(answerButtons);
         }
+      } else if (selectedAnswer === null) {
+        revealCorrectAnswer(answerButtons);
       }
     });
+    
+  } else {
+    startTimer();
   }
 
   answerButtons.forEach(button => {
@@ -180,20 +221,6 @@ function generateQuiz() {
         }
       })
     });
-
-  function autoAnswer() {
-    answerButtons.forEach(button => {
-      button.disabled = true;
-      if (button.dataset.answer === quiz[questionNumber].correctAnswer) {
-        button.classList.add('correct-answer-hint');
-        questionState.isAnswered = true;
-        questionState.selectedAnswer = button.dataset.answer;
-        saveState();
-      }
-    });
-
-    nextButton.disabled = false;
-  }
 }
 
 if (quizState.isFinished) {
@@ -206,7 +233,7 @@ function generateScoreSummary() {
   const scoreSummaryHTML = `
     <div class="score-summary-container">
       <h1>Congratulations</h1>
-      <h2>You scored ${score} out of ${totalQuizes}</h2>
+      <h2>You scored ${score} out of ${totalQuizes} questions</h2>
       <button class="button-primary js-play-again-button">Play again</button>
     </div>
   `;
@@ -222,8 +249,10 @@ function generateScoreSummary() {
 }
 
 function updateScore() {
-  document.querySelector('.js-score')
-    .innerHTML = `Score: ${score}/${totalQuizes}`;
+  const scoreElement = document.querySelector('.js-score');
+  if (scoreElement) {
+    scoreElement.innerHTML = `Score: ${score}/${totalQuizes}`;
+  }
 }
 
 function revealCorrectAnswer(answerButtons) {
@@ -235,22 +264,24 @@ function revealCorrectAnswer(answerButtons) {
 }
 
 function handleCorrectAnswer(button) {
+  stopTimer();
   const value = button.dataset.answer;
 
   button.classList.add('correct-answer');
   score ++;
   updateScore();
-  timeLeft = 30;
+  timeLeft = 15;
   questionState.isAnswered = true;
   questionState.selectedAnswer = value;
   saveState();
 }
 
 function handleWrongAnswer(button, answerButtons) {
+  stopTimer();
   const value = button.dataset.answer;
 
   button.classList.add('wrong-answer');
-  timeLeft = 30;
+  timeLeft = 15;
 
   setTimeout(() => {
     revealCorrectAnswer(answerButtons);
@@ -302,4 +333,50 @@ function shuffle(array) {
   }
 
   return array;
+}
+
+function startTimer() {
+  stopTimer();
+  timeLeft = 15;
+  updateTimer();
+
+  intervalId = setInterval(() => {
+    timeLeft--;
+    updateTimer();
+
+    if (timeLeft <= 0) {
+      stopTimer();
+      handleTimeout();
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
+}
+
+function updateTimer() {
+  const timerElement = document.querySelector('.js-count-down');
+  if (timerElement) {
+    timerElement.innerHTML = timeLeft;
+  }
+}
+
+function handleTimeout() {
+  const answerButtons = document.querySelectorAll('.js-answer-button');
+  const nextButton = document.querySelector('.js-next-button');
+
+  answerButtons.forEach(button => {
+    button.disabled = true;
+  });
+
+  revealCorrectAnswer(answerButtons);
+  nextButton.disabled = false;
+
+  questionState.isAnswered = true;
+  questionState.selectedAnswer = null;
+  saveState();
 }
