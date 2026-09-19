@@ -1,93 +1,117 @@
-const quizQuestions = [
+/* let backupQuizQuestions = [
   {
+    category: 'Computer Hardware',
+    difficulty: 'Easy',
     question: 'What does CPU stand for in computer hardware?',
-    correctAnswer: 'Central Processing Unit',
-    wrongAnswers: [
+    correct_answer: 'Central Processing Unit',
+    incorrect_answers: [
       'Computer Personal Unit',
       'Central Processor Unit',
       'Central Process Unit'
     ]
   },
   {
+    category: 'Computer Hardware',
+    difficulty: 'Easy',
     question: 'What does NPU stand for in computer hardware?',
-    correctAnswer: 'Neural Processing Unit',
-    wrongAnswers: [
+    correct_answer: 'Neural Processing Unit',
+    incorrect_answers: [
       'Neural Personal Unit',
       'Neural Processor Unit',
       'Neural Process Unit'
     ]
   },
   {
+    category: 'Computer Hardware',
+    difficulty: 'Easy',
     question: 'What does RAM stand for in computer hardware?',
-    correctAnswer: 'Random Access Memory',
-    wrongAnswers: [
+    correct_answer: 'Random Access Memory',
+    incorrect_answers: [
       'Random Accessory Memory',
       'Random Actual Memory',
       'Rate At Minutes'
     ]
   }
-];
+]; */
 
-/* const quiz = {
-  1: {
-    question: 'What does CPU stand for in computer hardware?',
-    correctAnswer: 'Central Processing Unit',
-    wrongAnswers: [
-      'Computer Personal Unit',
-      'Central Processor Unit',
-      'Central Process Unit'
-    ]
-  },
-  2: {
-    question: 'What does NPU stand for in computer hardware?',
-    correctAnswer: 'Neural Processing Unit',
-    wrongAnswers: [
-      'Neural Personal Unit',
-      'Neural Processor Unit',
-      'Neural Process Unit'
-    ]
-  },
-  3: {
-    question: 'What does RAM stand for in computer hardware?',
-    correctAnswer: 'Random Access Memory',
-    wrongAnswers: [
-      'Random Accessory Memory',
-      'Random Actual Memory',
-      'Rate At Minutes'
-    ]
+let quizQuestions = JSON.parse(localStorage.getItem('quizQuestions')) || [];
+
+async function loadQuestions() {
+  try {
+    const response = await fetch('https://opentdb.com/api.php?amount=10&type=multiple');
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw responseData;
+    }
+
+    quizQuestions = responseData.results;
+    localStorage.setItem('quizQuestions', JSON.stringify(quizQuestions));
+    console.log(quizQuestions);
+  } catch (error) {
+    alert(`${error}`);
+    loadQuiz();
   }
-};*/
+}
+
+async function loadQuiz() {
+  await loadQuestions();
+
+  if (quizState.isFinished) {
+    generateScoreSummary();
+  } else {
+    generateQuiz();
+  }
+}
 
 const totalQuizes = quizQuestions.length;
 let score = JSON.parse(localStorage.getItem('score')) || 0;
-let timeLeft = 15;
+let highScore = JSON.parse(localStorage.getItem('highScore')) || 0;
+let timeLeft = JSON.parse(localStorage.getItem('timeLeft')) ?? 15;
 let intervalId = null;
 
 let questionNumber = JSON.parse(localStorage.getItem('questionNumber')) || 0;
 
 let questionState = JSON.parse(localStorage.getItem('questionState')) || {
   isAnswered: false,
-  selectedAnswer: undefined
+  selectedAnswer: undefined,
+  shuffledAnswers: null
 };
 
 let quizState = JSON.parse(localStorage.getItem('quizState')) || {
   isFinished: false,
 };
 
+if (quizQuestions.length === 0) {
+  loadQuiz();
+} else {
+  if (quizState.isFinished) {
+    generateScoreSummary();
+  } else {
+    generateQuiz();
+    console.log(quizQuestions);
+  }
+}
+
 function saveState() {
   localStorage.setItem('score', JSON.stringify(score));
   localStorage.setItem('questionNumber', JSON.stringify(questionNumber));
   localStorage.setItem('questionState', JSON.stringify(questionState));
   localStorage.setItem('quizState', JSON.stringify(quizState));
+  localStorage.setItem('timeLeft', JSON.stringify(timeLeft));
 }
 
 function resetState() {
   localStorage.removeItem('questionState');
+  localStorage.removeItem('timeLeft');
 
   questionState = {
     isAnswered: false,
-    selectedAnswer: undefined
+    selectedAnswer: undefined,
+    isAnswersShuffled: null
   }
+
+  timeLeft = 15;
 }
 
 function resetGame() {
@@ -95,16 +119,21 @@ function resetGame() {
   localStorage.removeItem('questionNumber');
   localStorage.removeItem('questionState');
   localStorage.removeItem('quizState');
+  localStorage.removeItem('quizQuestions');
+  localStorage.removeItem('timeLeft');
 
   score = 0;
   questionNumber = 0;
   questionState = {
     isAnswered: false,
-    selectedAnswer: undefined
+    selectedAnswer: undefined,
+    shuffledAnswers: null
   };
   quizState = {
     isFinished: false
   };
+  quizQuestions = [];
+  timeLeft = 15;
 }
 
 function generateQuiz() {
@@ -119,7 +148,7 @@ function generateQuiz() {
           Score: ${score}/${totalQuizes}
         </div>
         <div class="count-down">
-          Time Remaining: <span class="js-count-down">15</span>s
+          Time Remaining: <span class="js-count-down">${timeLeft}</span>s
         </div>
       </div>
 
@@ -134,16 +163,6 @@ function generateQuiz() {
     </div>
 
     <div class="question-container">
-      <div class="quiz-info">
-        <p>Category: Science & Technology</p>
-        <p>|</p>
-        <p>Difficulty: Easy</p>
-      </div>
-
-      <div class="question-number">
-        Question ${questionNumber + 1} of ${totalQuizes}:
-      </div>
-
       <div class="js-question-body">
         ${generateQuestion()}
       </div>
@@ -185,7 +204,7 @@ function generateQuiz() {
     answerButtons.forEach(button => {
       button.disabled = true;
       if (selectedAnswer === button.dataset.answer) {
-        if (selectedAnswer === quizQuestions[questionNumber].correctAnswer) {
+        if (selectedAnswer === quizQuestions[questionNumber].correct_answer) {
           button.classList.add('correct-answer');
         } else {
           button.classList.add('wrong-answer');
@@ -210,7 +229,7 @@ function generateQuiz() {
 
         const value = button.dataset.answer;
 
-        if (value === quizQuestions[questionNumber].correctAnswer) {
+        if (value === quizQuestions[questionNumber].correct_answer) {
           handleCorrectAnswer(button);
 
         } else {
@@ -220,17 +239,19 @@ function generateQuiz() {
     });
 }
 
-if (quizState.isFinished) {
-  generateScoreSummary();
-} else {
-  generateQuiz();
-}
+// generate score summary
 
 function generateScoreSummary() {
+  if (score > highScore) {
+    highScore = score;
+    localStorage.setItem('highScore', highScore);
+  }
+
   const scoreSummaryHTML = `
     <div class="score-summary-container">
       <h1>Congratulations</h1>
       <h2>You scored ${score} out of ${totalQuizes} questions</h2>
+      <h3>High score: ${highScore}</h3>
       <button class="button-primary js-play-again-button">Play again</button>
     </div>
   `;
@@ -241,7 +262,7 @@ function generateScoreSummary() {
   document.querySelector('.js-play-again-button')
     .addEventListener('click', () => {
       resetGame();
-      generateQuiz();
+      loadQuiz();
     });
 }
 
@@ -254,7 +275,7 @@ function updateScore() {
 
 function revealCorrectAnswer(answerButtons) {
   answerButtons.forEach(button => {
-    if (button.dataset.answer === quizQuestions[questionNumber].correctAnswer) {
+    if (button.dataset.answer === quizQuestions[questionNumber].correct_answer) {
       button.classList.add('correct-answer-hint');
     }
   });
@@ -267,7 +288,6 @@ function handleCorrectAnswer(button) {
   button.classList.add('correct-answer');
   score ++;
   updateScore();
-  timeLeft = 15;
   questionState.isAnswered = true;
   questionState.selectedAnswer = value;
   saveState();
@@ -278,7 +298,6 @@ function handleWrongAnswer(button, answerButtons) {
   const value = button.dataset.answer;
 
   button.classList.add('wrong-answer');
-  timeLeft = 15;
 
   setTimeout(() => {
     revealCorrectAnswer(answerButtons);
@@ -292,15 +311,30 @@ function handleWrongAnswer(button, answerButtons) {
 function generateQuestion() {
   const quizQuestion = quizQuestions[questionNumber];
 
-  const answers = [];
-  answers.push(quizQuestion.correctAnswer);
-  for (let i = 0; i < quizQuestion.wrongAnswers.length; i++) {
-    answers.push(quizQuestion.wrongAnswers[i]);
+  if (!questionState.shuffledAnswers) {
+    const answers = [];
+    answers.push(quizQuestion.correct_answer);
+    for (let i = 0; i < quizQuestion.incorrect_answers.length; i++) {
+      answers.push(quizQuestion.incorrect_answers[i]);
+    }
+
+    questionState.shuffledAnswers = shuffle(answers);
+    saveState();
   }
 
-  shuffle(answers);
+  const answers = questionState.shuffledAnswers;
 
   const questionHTML = `
+    <div class="quiz-info">
+      <p>Category: ${quizQuestion.category}</p>
+      <p>|</p>
+      <p>Difficulty: ${quizQuestion.difficulty}</p>
+    </div>
+
+    <div class="question-number">
+      Question ${questionNumber + 1} of ${totalQuizes}:
+    </div>
+
     <div class="question">
       ${quizQuestion.question}
     </div>
@@ -334,7 +368,6 @@ function shuffle(array) {
 
 function startTimer() {
   stopTimer();
-  timeLeft = 15;
   updateTimer();
 
   intervalId = setInterval(() => {
