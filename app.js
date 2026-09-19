@@ -47,7 +47,6 @@ async function loadQuestions() {
 
     quizQuestions = responseData.results;
     localStorage.setItem('quizQuestions', JSON.stringify(quizQuestions));
-    console.log(quizQuestions);
   } catch (error) {
     alert(`${error}`);
     loadQuiz();
@@ -89,7 +88,6 @@ if (quizQuestions.length === 0) {
     generateScoreSummary();
   } else {
     generateQuiz();
-    console.log(quizQuestions);
   }
 }
 
