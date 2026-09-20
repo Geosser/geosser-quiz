@@ -42,28 +42,30 @@ async function loadQuestions() {
     const responseData = await response.json();
 
     if (!response.ok) {
-      throw responseData;
+      throw `Unexpected error occured. Please try refreshing page. Status Code: ${response.status}`;
     }
 
     quizQuestions = responseData.results;
     localStorage.setItem('quizQuestions', JSON.stringify(quizQuestions));
   } catch (error) {
-    alert(`${error}`);
-    loadQuiz();
+    alert(error);
   }
 }
 
 async function loadQuiz() {
-  await loadQuestions();
+  try {
+    await loadQuestions();
 
-  if (quizState.isFinished) {
-    generateScoreSummary();
-  } else {
-    generateQuiz();
+    if (quizState.isFinished) {
+      generateScoreSummary();
+    } else {
+      generateQuiz();
+    }
+  } catch (error) {
+    alert('Could not load questions. Please try refreshing page');
   }
 }
 
-const totalQuizes = quizQuestions.length;
 let score = JSON.parse(localStorage.getItem('score')) || 0;
 let highScore = JSON.parse(localStorage.getItem('highScore')) || 0;
 let timeLeft = JSON.parse(localStorage.getItem('timeLeft')) ?? 15;
@@ -105,8 +107,7 @@ function resetState() {
 
   questionState = {
     isAnswered: false,
-    selectedAnswer: undefined,
-    isAnswersShuffled: null
+    selectedAnswer: undefined
   }
 
   timeLeft = 15;
@@ -136,6 +137,8 @@ function resetGame() {
 
 function generateQuiz() {
   saveState();
+
+  const totalQuizes = quizQuestions.length;
 
   const percentProgress = ((questionNumber + 1) / totalQuizes) * 100;
 
@@ -240,6 +243,8 @@ function generateQuiz() {
 // generate score summary
 
 function generateScoreSummary() {
+  const totalQuizes = quizQuestions.length;
+
   if (score > highScore) {
     highScore = score;
     localStorage.setItem('highScore', highScore);
@@ -257,14 +262,18 @@ function generateScoreSummary() {
   document.querySelector('.js-quiz-container')
     .innerHTML = scoreSummaryHTML;
 
-  document.querySelector('.js-play-again-button')
-    .addEventListener('click', () => {
-      resetGame();
-      loadQuiz();
-    });
+  const playAgainButton = document.querySelector('.js-play-again-button');
+
+  playAgainButton.addEventListener('click', () => {
+    playAgainButton.disabled = true;
+    resetGame();
+    loadQuiz();
+  });
 }
 
 function updateScore() {
+  const totalQuizes = quizQuestions.length;
+
   const scoreElement = document.querySelector('.js-score');
   if (scoreElement) {
     scoreElement.innerHTML = `Score: ${score}/${totalQuizes}`;
@@ -307,6 +316,7 @@ function handleWrongAnswer(button, answerButtons) {
 }
 
 function generateQuestion() {
+  const totalQuizes = quizQuestions.length;
   const quizQuestion = quizQuestions[questionNumber];
 
   if (!questionState.shuffledAnswers) {
