@@ -54,7 +54,9 @@ async function loadQuestions() {
 
 async function loadQuiz() {
   try {
-    await loadQuestions();
+    if (quizQuestions.length === 0) {
+      await loadQuestions();
+    }
 
     if (quizState.isFinished) {
       generateScoreSummary();
@@ -68,7 +70,7 @@ async function loadQuiz() {
 
 let score = JSON.parse(localStorage.getItem('score')) || 0;
 let highScore = JSON.parse(localStorage.getItem('highScore')) || 0;
-let timeLeft = JSON.parse(localStorage.getItem('timeLeft')) ?? 15;
+let timeLeft = JSON.parse(localStorage.getItem('timeLeft')) ?? 30;
 let intervalId = null;
 
 let questionNumber = JSON.parse(localStorage.getItem('questionNumber')) || 0;
@@ -110,7 +112,7 @@ function resetState() {
     selectedAnswer: undefined
   }
 
-  timeLeft = 15;
+  timeLeft = 30;
 }
 
 function resetGame() {
@@ -132,7 +134,7 @@ function resetGame() {
     isFinished: false
   };
   quizQuestions = [];
-  timeLeft = 15;
+  timeLeft = 30;
 }
 
 function generateQuiz() {
@@ -230,7 +232,7 @@ function generateQuiz() {
 
         const value = button.dataset.answer;
 
-        if (value === quizQuestions[questionNumber].correct_answer) {
+        if (value === decodeHTML(quizQuestions[questionNumber].correct_answer)) {
           handleCorrectAnswer(button);
 
         } else {
@@ -255,7 +257,7 @@ function generateScoreSummary() {
       <h1>Congratulations</h1>
       <h2>You scored ${score} out of ${totalQuizes} questions</h2>
       <h3>High score: ${highScore}</h3>
-      <button class="button-primary js-play-again-button">Play again</button>
+      <button class="button-primary play-again-button js-play-again-button">Play again</button>
     </div>
   `;
 
@@ -266,6 +268,7 @@ function generateScoreSummary() {
 
   playAgainButton.addEventListener('click', () => {
     playAgainButton.disabled = true;
+    playAgainButton.innerHTML = 'Loading...';
     resetGame();
     loadQuiz();
   });
@@ -282,7 +285,7 @@ function updateScore() {
 
 function revealCorrectAnswer(answerButtons) {
   answerButtons.forEach(button => {
-    if (button.dataset.answer === quizQuestions[questionNumber].correct_answer) {
+    if (button.dataset.answer === decodeHTML(quizQuestions[questionNumber].correct_answer)) {
       button.classList.add('correct-answer-hint');
     }
   });
@@ -330,7 +333,9 @@ function generateQuestion() {
     saveState();
   }
 
-  const answers = questionState.shuffledAnswers;
+  const answers = questionState.shuffledAnswers.map(answer => {
+    return decodeHTML(answer);
+  });
 
   const questionHTML = `
     <div class="quiz-info">
@@ -417,4 +422,9 @@ function handleTimeout() {
   questionState.isAnswered = true;
   questionState.selectedAnswer = null;
   saveState();
+}
+
+function decodeHTML(html) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return doc.body.textContent;
 }
