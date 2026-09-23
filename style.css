@@ -43,6 +43,45 @@ header {
   background-color: #008BFF;
 }
 
+.setup-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 80px;
+}
+
+.setup-title {
+  margin-top: 30px;
+  margin-left: 20px;
+  margin-right: 20px;
+  text-align: center;
+}
+
+.quiz-configuration-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 25px;
+  margin-bottom: 40px;
+  width: 200px;
+}
+
+.configuration-headers {
+  font-size: 18px;
+  color: #3d3d3d;
+  padding: 5px;
+  background-color: #c6deee;
+  border-radius: 5px;
+}
+
+.input-box {
+  padding: 10px;
+  font-size: 15px;
+  border: none;
+  border-radius: 5px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.24);
+}
+
 .quiz-header {
   margin: 15px 10px 0 10px;
   background-color: #ebebeb;
@@ -196,6 +235,10 @@ header {
 }
 
 @media (min-width: 600px) {
+  .quiz-configuration-container {
+    width: 300px;
+  }
+
   .quiz-header {
     margin-left: 50px;
     margin-right: 50px;
@@ -231,6 +274,20 @@ header {
 }
 
 @media (min-width: 1280px) {
+  .quiz-configuration-container {
+    flex-direction: row;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .configuration-headers {
+    padding: 10px;
+  }
+
+  .input-box {
+    width: 180px;
+  }
+
   .answers {
     display: grid;
     grid-template-columns: repeat(4, 1fr);

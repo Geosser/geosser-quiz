@@ -1,44 +1,92 @@
-/* let backupQuizQuestions = [
-  {
-    category: 'Computer Hardware',
-    difficulty: 'Easy',
-    question: 'What does CPU stand for in computer hardware?',
-    correct_answer: 'Central Processing Unit',
-    incorrect_answers: [
-      'Computer Personal Unit',
-      'Central Processor Unit',
-      'Central Process Unit'
-    ]
-  },
-  {
-    category: 'Computer Hardware',
-    difficulty: 'Easy',
-    question: 'What does NPU stand for in computer hardware?',
-    correct_answer: 'Neural Processing Unit',
-    incorrect_answers: [
-      'Neural Personal Unit',
-      'Neural Processor Unit',
-      'Neural Process Unit'
-    ]
-  },
-  {
-    category: 'Computer Hardware',
-    difficulty: 'Easy',
-    question: 'What does RAM stand for in computer hardware?',
-    correct_answer: 'Random Access Memory',
-    incorrect_answers: [
-      'Random Accessory Memory',
-      'Random Actual Memory',
-      'Rate At Minutes'
-    ]
+let url = JSON.parse(localStorage.getItem('fetchQuizUrl')) || null;
+
+async function loadQuizCategories() {
+  try {
+    const response = await fetch('https://opentdb.com/api_category.php');
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw 'Unexpect error. Please try again later';
+    }
+    return responseData.trivia_categories;
+  } catch (error) {
+    alert(error);
   }
-]; */
+}
+ 
+
+async function generateQuizSetup() {  
+  const quizCategories = await loadQuizCategories();
+
+  const setupHTML = `
+    <h2 class="setup-title">
+      Setup the quiz to your best comfortability.
+    </h2>
+
+    <div class="quiz-configuration-container">
+      <p class="configuration-headers quiz-category">Select Category:</p>
+      <select name="category-configuration" class="input-box js-category-configuration">
+        <option value="">Any Category</option>
+        ${generateCategoryOptions(quizCategories)}
+      </select>
+
+      <p class="configuration-headers quiz-difficulty">Select Difficulty:</p>
+      <select name="difficulty-configuration" class="input-box js-difficulty-configuration">
+        <option value="">Any Difficulty</option>
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+
+      <p class="configuration-headers quiz-amount">Select Amount:</p>
+      <input type="number" class="input-box js-question-amount-configuration" value="10" min="1" max="50">
+    </div>
+
+    <button class="button-primary start-quiz-button js-start-quiz-button">Start Quiz</button>
+  `;
+
+  const setupContainer = document.querySelector('.js-setup-container');
+  setupContainer.innerHTML = setupHTML;
+
+  const startQuizButton = document.querySelector('.js-start-quiz-button');
+
+  startQuizButton.addEventListener('click', () => {
+    quizState.isStarted = true;
+
+    const category = document.querySelector('.js-category-configuration').value;
+    const difficulty = document.querySelector('.js-difficulty-configuration').value;
+    const questionAmount = document.querySelector('.js-question-amount-configuration').value;
+
+    url = `https://opentdb.com/api.php?amount=${questionAmount}&type=multiple&category=${category}&difficulty=${difficulty}`;
+
+    saveState();
+
+    setupContainer.classList.add('hide');
+
+    const quizContainer = document.querySelector('.js-quiz-container');
+    if (quizContainer.classList.contains('hide')) {
+      quizContainer.classList.remove('hide');
+    }
+
+    loadQuiz();
+  });
+
+  function generateCategoryOptions (quizCategories) {
+    let html =  '';
+
+    quizCategories.forEach(category => {
+      html += `<option value="${category.id}">${category.name}</option>`;
+    });
+
+    return html;
+  }
+}
 
 let quizQuestions = JSON.parse(localStorage.getItem('quizQuestions')) || [];
 
 async function loadQuestions() {
   try {
-    const response = await fetch('https://opentdb.com/api.php?amount=10&type=multiple');
+    const response = await fetch(url);
     const responseData = await response.json();
 
     if (!response.ok) {
@@ -82,17 +130,14 @@ let questionState = JSON.parse(localStorage.getItem('questionState')) || {
 };
 
 let quizState = JSON.parse(localStorage.getItem('quizState')) || {
+  isStarted: false,
   isFinished: false,
 };
 
-if (quizQuestions.length === 0) {
-  loadQuiz();
+if (!quizState.isStarted) {
+  generateQuizSetup();
 } else {
-  if (quizState.isFinished) {
-    generateScoreSummary();
-  } else {
-    generateQuiz();
-  }
+  loadQuiz();
 }
 
 function saveState() {
@@ -101,6 +146,7 @@ function saveState() {
   localStorage.setItem('questionState', JSON.stringify(questionState));
   localStorage.setItem('quizState', JSON.stringify(quizState));
   localStorage.setItem('timeLeft', JSON.stringify(timeLeft));
+  localStorage.setItem('fetchQuizUrl', JSON.stringify(url));
 }
 
 function resetState() {
@@ -131,6 +177,7 @@ function resetGame() {
     shuffledAnswers: null
   };
   quizState = {
+    isStarted: false,
     isFinished: false
   };
   quizQuestions = [];
@@ -172,8 +219,8 @@ function generateQuiz() {
     </div>
   `;
 
-  document.querySelector('.js-quiz-container')
-    .innerHTML = quizHTML;
+  const quizContainer = document.querySelector('.js-quiz-container');
+  quizContainer.innerHTML = quizHTML;
 
   const nextButton = document.querySelector('.js-next-button');
   nextButton.disabled = true;
@@ -257,12 +304,14 @@ function generateScoreSummary() {
       <h1>Congratulations</h1>
       <h2>You scored ${score} out of ${totalQuizes} questions</h2>
       <h3>High score: ${highScore}</h3>
-      <button class="button-primary play-again-button js-play-again-button">Play again</button>
+      <button class="button-primary play-again-button js-play-again-button">Play Again</button>
+      <p>Or</p>
+      <button class="button-primary configure-quiz-button js-configure-quiz-button">Configure Quiz</button>
     </div>
   `;
 
-  document.querySelector('.js-quiz-container')
-    .innerHTML = scoreSummaryHTML;
+  const quizContainer = document.querySelector('.js-quiz-container');
+  quizContainer.innerHTML = scoreSummaryHTML;
 
   const playAgainButton = document.querySelector('.js-play-again-button');
 
@@ -270,7 +319,20 @@ function generateScoreSummary() {
     playAgainButton.disabled = true;
     playAgainButton.innerHTML = 'Loading...';
     resetGame();
+
+    quizState.isStarted = true;
+    saveState();
     loadQuiz();
+  });
+
+  const configureQuizButton = document.querySelector('.js-configure-quiz-button');
+
+  configureQuizButton.addEventListener('click', () => {
+    resetGame();
+    localStorage.removeItem('fetchQuizUrl');
+    url = null;
+    quizContainer.classList.add('hide');
+    generateQuizSetup();
   });
 }
 
