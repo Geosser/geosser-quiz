@@ -3,20 +3,46 @@ let url = JSON.parse(localStorage.getItem('fetchQuizUrl')) || null;
 async function loadQuizCategories() {
   try {
     const response = await fetch('https://opentdb.com/api_category.php');
-    const responseData = await response.json();
 
     if (!response.ok) {
-      throw 'Unexpect error. Please try again later';
+      throw `HTTP Error Status: ${response.status}`;
     }
+
+    const responseData = await response.json();
     return responseData.trivia_categories;
   } catch (error) {
-    alert(error);
+    console.error('Failed to load categories:', error);
+    alert('Failed to load quiz categories. Please check your connection and refresh.');
+    return [];
   }
 }
- 
+
+async function loadCategoryQuestionCount(categoryId) {
+  const endpoint = categoryId === ''
+    ? 'https://opentdb.com/api_count_global.php'
+    : `https://opentdb.com/api_count.php?category=${categoryId}`;
+  try {
+    const response = await fetch(endpoint);
+
+    if (!response.ok) {
+      throw `HTTP Error status: ${response.status}`;
+    }
+
+    const responseData = await response.json();
+    
+    return responseData;
+  } catch (error) {
+    console.error('Failed to fetch question count:', error);
+    alert('Could not verify question count from the database. Please check your network connection.');
+    return null;
+  }
+}
 
 async function generateQuizSetup() {  
   const quizCategories = await loadQuizCategories();
+
+  const setupContainer = document.querySelector('.js-setup-container');
+  setupContainer.classList.remove('hide');
 
   const setupHTML = `
     <h2 class="setup-title">
@@ -45,17 +71,48 @@ async function generateQuizSetup() {
     <button class="button-primary start-quiz-button js-start-quiz-button">Start Quiz</button>
   `;
 
-  const setupContainer = document.querySelector('.js-setup-container');
   setupContainer.innerHTML = setupHTML;
 
   const startQuizButton = document.querySelector('.js-start-quiz-button');
 
-  startQuizButton.addEventListener('click', () => {
-    quizState.isStarted = true;
-
+  startQuizButton.addEventListener('click', async () => {
     const category = document.querySelector('.js-category-configuration').value;
     const difficulty = document.querySelector('.js-difficulty-configuration').value;
     const questionAmount = document.querySelector('.js-question-amount-configuration').value;
+
+    const questionCount = await loadCategoryQuestionCount(category);
+
+    if (questionAmount > 50) {
+      alert('Question amount cannot be greater than 50');
+      return;
+    }
+
+    if (!questionCount) {
+      alert('Unable to verify database questions. Load quiz with default settings.');
+      return;
+    }
+
+    let maxQuestionsAvailable = 0;
+
+    if (!category) {
+      maxQuestionsAvailable = questionCount.overall.total_number_of_questions;
+    } else {
+      const difficultyKeys = {
+        easy: 'total_easy_question_count',
+        medium: 'total_medium_question_count',
+        hard: 'total_hard_question_count'
+      }
+
+      const targetDifficulty = difficultyKeys[difficulty] || 'total_question_count';
+      maxQuestionsAvailable = questionCount.category_question_count[targetDifficulty];
+    }
+
+    if (questionAmount > maxQuestionsAvailable) {
+      alert(`Question amount exceeds available questions in the database. (${maxQuestionsAvailable} available).`);
+      return;
+    }
+
+    quizState.isStarted = true;
 
     url = `https://opentdb.com/api.php?amount=${questionAmount}&type=multiple&category=${category}&difficulty=${difficulty}`;
 
@@ -64,22 +121,23 @@ async function generateQuizSetup() {
     setupContainer.classList.add('hide');
 
     const quizContainer = document.querySelector('.js-quiz-container');
-    if (quizContainer.classList.contains('hide')) {
+    if (quizContainer) {
+      quizContainer.innerHTML = '<h2 class="loading-text" style="text-align:center; margin-top:80px;">Loading Quiz...</h2>';
       quizContainer.classList.remove('hide');
     }
 
     loadQuiz();
   });
+}
 
-  function generateCategoryOptions (quizCategories) {
-    let html =  '';
+function generateCategoryOptions (quizCategories) {
+  let html =  '';
 
-    quizCategories.forEach(category => {
-      html += `<option value="${category.id}">${category.name}</option>`;
-    });
+  quizCategories.forEach(category => {
+    html += `<option value="${category.id}">${category.name}</option>`;
+  });
 
-    return html;
-  }
+  return html;
 }
 
 let quizQuestions = JSON.parse(localStorage.getItem('quizQuestions')) || [];
@@ -87,32 +145,45 @@ let quizQuestions = JSON.parse(localStorage.getItem('quizQuestions')) || [];
 async function loadQuestions() {
   try {
     const response = await fetch(url);
-    const responseData = await response.json();
 
     if (!response.ok) {
-      throw `Unexpected error occured. Please try refreshing page. Status Code: ${response.status}`;
+      throw `HTTP error! Status: ${response.status}`;
+    }
+
+    const responseData = await response.json();
+
+    if (responseData.response_code !== 0 || !responseData.results.length) {
+      throw 'No questions found for this configuration.';
     }
 
     quizQuestions = responseData.results;
     localStorage.setItem('quizQuestions', JSON.stringify(quizQuestions));
   } catch (error) {
-    alert(error);
+    console.error('Failed to fetch questions:', error);
+    alert('Unable to load questions from the server.');
   }
 }
 
 async function loadQuiz() {
-  try {
-    if (quizQuestions.length === 0) {
-      await loadQuestions();
-    }
+  if (quizQuestions.length === 0) {
+    await loadQuestions();
+  }
 
-    if (quizState.isFinished) {
-      generateScoreSummary();
-    } else {
-      generateQuiz();
-    }
-  } catch (error) {
-    alert('Could not load questions. Please try refreshing page');
+  if (!quizQuestions || quizQuestions.length === 0) {
+    console.error("No quiz questions available to load.");
+    alert("Unable to start quiz. Please configure your quiz settings and try again.");
+
+    resetGame();
+    localStorage.removeItem('fetchQuizUrl');
+    document.querySelector('.js-quiz-container').classList.add('hide');
+    generateQuizSetup();
+    return;
+  }
+
+  if (quizState.isFinished) {
+    generateScoreSummary();
+  } else {
+    generateQuiz();
   }
 }
 
@@ -134,11 +205,18 @@ let quizState = JSON.parse(localStorage.getItem('quizState')) || {
   isFinished: false,
 };
 
-if (!quizState.isStarted) {
-  generateQuizSetup();
-} else {
-  loadQuiz();
+function initApp() {
+  if (!quizState.isStarted) {
+    document.querySelector('.js-quiz-container').classList.add('hide');
+    generateQuizSetup();
+  } else {
+    document.querySelector('.js-setup-container').classList.add('hide');
+    document.querySelector('.js-quiz-container').classList.remove('hide');
+    loadQuiz();
+  }
 }
+
+initApp();
 
 function saveState() {
   localStorage.setItem('score', JSON.stringify(score));
@@ -155,7 +233,8 @@ function resetState() {
 
   questionState = {
     isAnswered: false,
-    selectedAnswer: undefined
+    selectedAnswer: undefined,
+    shuffledAnswers: null
   }
 
   timeLeft = 30;
@@ -447,6 +526,7 @@ function startTimer() {
 
   intervalId = setInterval(() => {
     timeLeft--;
+    saveState();
     updateTimer();
 
     if (timeLeft <= 0) {
